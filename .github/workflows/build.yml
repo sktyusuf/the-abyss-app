@@ -41,7 +41,7 @@ jobs:
   # ── iOS IPA (unsigned — install via TrollStore or Sideloadly) ───────────────
   ios:
     name: iOS IPA
-    runs-on: macos-latest
+    runs-on: macos-13   # Xcode 15 — macos-latest uses Xcode 16 which has asset catalog bugs
 
     steps:
       - uses: actions/checkout@v4
