@@ -3,7 +3,6 @@ name: Build & Release
 on:
   push:
     branches: [main]
-  # Also lets you trigger it manually from GitHub website
   workflow_dispatch:
 
 jobs:
@@ -39,10 +38,10 @@ jobs:
           retention-days: 30
 
 
-  # ── iOS IPA (unsigned — install via Sideloadly or AltStore) ────────────────
+  # ── iOS IPA (unsigned — install via TrollStore or Sideloadly) ───────────────
   ios:
     name: iOS IPA
-    runs-on: macos-latest   # ← GitHub's free Mac virtual machine
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -51,21 +50,33 @@ jobs:
         with:
           channel: stable
 
-      - name: Get dependencies
+      - name: Get Flutter dependencies
         run: flutter pub get
 
-      - name: Build iOS (no code signing required)
-        # --no-codesign = build the app bundle without any Apple certificate.
-        # Recipients install it using Sideloadly / AltStore, which sign it
-        # with their own free Apple ID locally on their device.
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install --repo-update
+        
+      - name: Build iOS (no code signing)
         run: flutter build ios --release --no-codesign
 
-      - name: Package as IPA
+      - name: Find Runner.app and package as IPA
         run: |
-          cd build/ios/iphoneos
-          mkdir Payload
-          cp -r Runner.app Payload/Runner.app
-          zip -r -y ../../../TheAbyss.ipa Payload
+          # Find Runner.app wherever Flutter put it
+          APP_PATH=$(find build/ios -name "Runner.app" -type d | head -1)
+          echo "Found Runner.app at: $APP_PATH"
+          
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: Runner.app not found! Listing build/ios:"
+            find build/ios -type d | head -30
+            exit 1
+          fi
+          
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/Runner.app
+          zip -r -y TheAbyss.ipa Payload
+          echo "IPA created successfully"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
